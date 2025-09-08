@@ -1,0 +1,44 @@
+version: 2
+
+sources:
+  - name: bronze
+    database: FURCHILD_DW
+    schema: BRONZE
+    tables:
+      - name: transactions
+      - name: transaction_items
+
+models:
+  - name: stg_orders
+    description: "Silver: normalized orders built from BRONZE.transactions."
+    columns:
+      - name: order_id
+        tests: [not_null, unique]
+      - name: created_at_utc
+        tests: [not_null]
+      - name: payment_status
+        tests:
+          - accepted_values:
+              values: ['paid','unpaid','unknown']
+      - name: delivery_status
+        tests:
+          - accepted_values:
+              values: ['delivered','pending','unknown']
+
+  - name: stg_order_items
+    description: "Silver: normalized order items built from BRONZE.transaction_items."
+    columns:
+      - name: order_item_id
+        tests: [not_null, unique]
+      - name: order_id
+        tests: [not_null]
+      - name: product_id
+        tests: [not_null]
+      - name: quantity
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "coalesce(quantity,0) >= 0"
+      - name: price
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "coalesce(price,0) >= 0"

@@ -1,0 +1,12 @@
+name: furchild_snowflake
+version: 1.0.0
+config-version: 2
+
+profile: default
+model-paths: ["models"]
+
+models:
+  furchild_snowflake:
+    staging:
+      +schema: SILVER
+      +materialized: table
