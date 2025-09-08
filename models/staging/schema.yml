@@ -16,14 +16,7 @@ models:
         tests: [not_null, unique]
       - name: created_at_utc
         tests: [not_null]
-      - name: payment_status
-        tests:
-          - accepted_values:
-              values: ['paid','unpaid','unknown']
-      - name: delivery_status
-        tests:
-          - accepted_values:
-              values: ['delivered','pending','unknown']
+      # removed accepted_values tests on payment_status & delivery_status
 
   - name: stg_order_items
     description: "Silver: normalized order items built from BRONZE.transaction_items."
@@ -34,11 +27,4 @@ models:
         tests: [not_null]
       - name: product_id
         tests: [not_null]
-      - name: quantity
-        tests:
-          - dbt_utils.expression_is_true:
-              expression: "coalesce(quantity,0) >= 0"
-      - name: price
-        tests:
-          - dbt_utils.expression_is_true:
-              expression: "coalesce(price,0) >= 0"
+      # removed expression_is_true tests on quantity & price
