@@ -7,6 +7,14 @@ sources:
     tables:
       - name: transactions
       - name: transaction_items
+      - name: customer_accounts
+      - name: zbooks_invoices
+      - name: zbooks_shipments
+      - name: packages_printed
+      - name: product_details
+      - name: product_categories
+      - name: product_brands
+      - name: transaction_addresses
 
 models:
   - name: stg_orders
@@ -28,3 +36,93 @@ models:
       - name: product_id
         tests: [not_null]
       # removed expression_is_true tests on quantity & price
+  - name: stg_customers
+    description: "Silver: normalized customers built from BRONZE.customer_accounts."
+    columns:
+      - name: customer_id
+        tests: [not_null, unique]
+      - name: email_primary
+        tests: [not_null]
+  - name: stg_invoice_payments
+    columns:
+      - name: payment_id
+        tests: [not_null, unique]
+      - name: amount_paid
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "amount_paid >= 0"
+      - name: total_amount
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "total_amount >= amount_paid"
+
+  - name: stg_invoices_ar
+    description: "Silver layer of Zoho Books invoices representing open accounts receivable"
+    columns:
+      - name: invoice_id
+        description: "Unique identifier for the invoice"
+        tests:
+          - not_null
+          - unique
+
+      - name: invoice_number
+        description: "Human-readable invoice number"
+        tests:
+          - not_null
+
+      - name: customer_id
+        description: "Unique identifier for the customer"
+        tests:
+          - not_null
+
+      - name: total_amount
+        description: "Total invoice amount"
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "total_amount >= 0"
+
+      - name: balance
+        description: "Outstanding balance on the invoice"
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "balance >= 0"
+
+      - name: amount_paid
+        description: "Amount paid so far"
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "amount_paid >= 0"
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "amount_paid <= total_amount"
+
+      - name: status_canonical
+        description: "Normalized invoice payment status"
+        tests:
+          - accepted_values:
+              values: ["paid", "partially_paid", "unpaid"]
+
+  - name: stg_shipments
+    description: "Zoho Books shipments (one row per shipment/package)"
+    columns:
+      - name: shipment_id
+        tests: [not_null, unique]
+
+      - name: status_canonical
+        tests:
+          - accepted_values:
+              arguments:
+                values:
+                  ["shipped", "in_transit", "delivered", "failed", "returned"]
+              config:
+                severity: warn
