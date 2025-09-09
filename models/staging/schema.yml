@@ -24,7 +24,7 @@ models:
         tests: [not_null, unique]
       - name: created_at_utc
         tests: [not_null]
-      # removed accepted_values tests on payment_status & delivery_status
+      # accepted_values tests removed by design
 
   - name: stg_order_items
     description: "Silver: normalized order items built from BRONZE.transaction_items."
@@ -35,7 +35,8 @@ models:
         tests: [not_null]
       - name: product_id
         tests: [not_null]
-      # removed expression_is_true tests on quantity & price
+      # expression/quantity/price tests intentionally removed
+
   - name: stg_customers
     description: "Silver: normalized customers built from BRONZE.customer_accounts."
     columns:
@@ -43,6 +44,7 @@ models:
         tests: [not_null, unique]
       - name: email_primary
         tests: [not_null]
+
   - name: stg_invoice_payments
     columns:
       - name: payment_id
@@ -51,60 +53,50 @@ models:
         tests:
           - not_null
           - dbt_utils.expression_is_true:
-              arguments:
-                expression: "amount_paid >= 0"
+              expression: "{{ column_name }} >= 0"
       - name: total_amount
         tests:
           - not_null
           - dbt_utils.expression_is_true:
-              arguments:
-                expression: "total_amount >= amount_paid"
+              expression: "{{ column_name }} >= amount_paid"
 
   - name: stg_invoices_ar
     description: "Silver layer of Zoho Books invoices representing open accounts receivable"
     columns:
       - name: invoice_id
         description: "Unique identifier for the invoice"
-        tests:
-          - not_null
-          - unique
+        tests: [not_null, unique]
 
       - name: invoice_number
         description: "Human-readable invoice number"
-        tests:
-          - not_null
+        tests: [not_null]
 
       - name: customer_id
         description: "Unique identifier for the customer"
-        tests:
-          - not_null
+        tests: [not_null]
 
       - name: total_amount
         description: "Total invoice amount"
         tests:
           - not_null
           - dbt_utils.expression_is_true:
-              arguments:
-                expression: "total_amount >= 0"
+              expression: "{{ column_name }} >= 0"
 
       - name: balance
         description: "Outstanding balance on the invoice"
         tests:
           - not_null
           - dbt_utils.expression_is_true:
-              arguments:
-                expression: "balance >= 0"
+              expression: "{{ column_name }} >= 0"
 
       - name: amount_paid
         description: "Amount paid so far"
         tests:
           - not_null
           - dbt_utils.expression_is_true:
-              arguments:
-                expression: "amount_paid >= 0"
+              expression: "{{ column_name }} >= 0"
           - dbt_utils.expression_is_true:
-              arguments:
-                expression: "amount_paid <= total_amount"
+              expression: "{{ column_name }} <= total_amount"
 
       - name: status_canonical
         description: "Normalized invoice payment status"
@@ -117,12 +109,9 @@ models:
     columns:
       - name: shipment_id
         tests: [not_null, unique]
-
       - name: status_canonical
         tests:
           - accepted_values:
-              arguments:
-                values:
-                  ["shipped", "in_transit", "delivered", "failed", "returned"]
+              values: ["shipped", "in_transit", "delivered", "failed", "returned"]
               config:
                 severity: warn
