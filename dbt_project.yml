@@ -5,8 +5,12 @@ config-version: 2
 profile: default
 model-paths: ["models"]
 
+flags:
+  warn_error: false 
+
 models:
   furchild_snowflake:
     staging:
       +schema: SILVER
       +materialized: table
+      
