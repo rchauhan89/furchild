@@ -6,12 +6,7 @@ models:
     columns:
       - name: order_item_sk
         tests: [not_null, unique]
-
       - name: order_id
         tests: [not_null]
-
       - name: product_id
         tests: [not_null]
-
-    # Intentionally removing numeric validation checks to unblock CI quickly.
-    # (All dbt_utils.expression_is_true tests removed.)
