@@ -13,4 +13,20 @@ models:
     staging:
       +schema: SILVER
       +materialized: table
-      
+    marts:
+      +materialized: table
+      +schema: GOLD
+
+      commerce:
+        +tags: ['mart', 'commerce']
+        dims:
+          +materialized: table     
+        facts:
+          +materialized: incremental
+          +on_schema_change: append_new_columns
+          +persist_docs:
+            relation: true
+            columns: true
+        aggregates:
+          +materialized: table
+
