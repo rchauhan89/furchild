@@ -1,0 +1,80 @@
+version: 2
+
+models:
+  - name: dim_orders
+    description: |
+      Order header attributes (one row per order_id). Includes customer_id,
+      is_first_order, and order_rank_for_customer. Placeholders for future
+      order-level attributes (status, payment, channel, shipping, etc.) are included.
+
+    columns:
+      - name: order_sk
+        description: "Surrogate key for the order (md5 of order_id)."
+        tests: [not_null, unique]
+
+      - name: order_id
+        description: "Source order ID from the transactional system."
+        tests: [not_null, unique]
+
+      - name: customer_id
+        description: "Customer identifier from the source system (string). May be null for some historical rows."
+
+      - name: created_at_local
+        description: "Order creation timestamp in local timezone."
+
+      - name: created_at_utc
+        description: "Order creation timestamp in UTC."
+
+      - name: order_date_local
+        description: "Date part of created_at_local (local calendar date)."
+
+      - name: is_first_order
+        description: "True if this is the customer’s first order (rank = 1)."
+
+      - name: order_rank_for_customer
+        description: "1-based order sequence number for this customer."
+
+      # ───────────────────────────────────────────────────────────────
+      # Placeholders for additional attributes once they’re added upstream
+      # - name: status
+      #   description: "Current status of the order (e.g., created, confirmed, cancelled)."
+      #
+      # - name: payment_status
+      #   description: "Payment status (e.g., pending, paid, refunded)."
+      #
+      # - name: fulfillment_status
+      #   description: "Fulfillment status (e.g., pending, packed, shipped, delivered)."
+      #
+      # - name: order_channel
+      #   description: "Channel through which the order was placed (e.g., website, app, call center)."
+      #
+      # - name: currency_code
+      #   description: "Currency code used in the order."
+      #
+      # - name: customer_email
+      #   description: "Email address of the customer (if available)."
+      #
+      # - name: shipping_country
+      #   description: "Shipping country for the order."
+      #
+      # - name: shipping_city
+      #   description: "Shipping city for the order."
+      #
+      # - name: shipping_postcode
+      #   description: "Shipping postal code for the order."
+      #
+      # - name: coupon_code
+      #   description: "Coupon code applied to the order (if any)."
+      #
+      # - name: notes
+      #   description: "Freeform notes or comments attached to the order."
+      # ───────────────────────────────────────────────────────────────
+
+    tests:
+      # Ensure each (customer_id, order_rank_for_customer) pair is unique
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: ['customer_id','order_rank_for_customer']
+
+      # Sanity: is_first_order must equal (order_rank_for_customer = 1)
+      - dbt_utils.expression_is_true:
+          expression: "(is_first_order = (order_rank_for_customer = 1))"
