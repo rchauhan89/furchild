@@ -1,0 +1,6 @@
+models:
+  - name: fct_customers
+    description: "Customer-level facts: LTV, frequency, recency."
+    columns:
+      - name: customer_id
+        tests: [not_null, unique]

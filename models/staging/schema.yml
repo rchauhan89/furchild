@@ -4,9 +4,88 @@ sources:
   - name: bronze
     database: FURCHILD_DW
     schema: BRONZE
+    quoting:
+      database: false
+      schema: false
+      identifier: false # <— changed to false so dbt won’t produce "transaction_items"
     tables:
       - name: transactions
+        description: "Raw orders with user, timestamps, statuses, and device/channel."
+        columns:
+          - name: ID
+            description: "Order id (primary key)."
+            tests: [not_null, unique]
+          - name: USER_ID
+            description: "Customer/user key."
+            tests: [not_null]
+          - name: TRANSACTION_DATE
+            description: "Order timestamp (UTC)."
+            tests: [not_null]
+          - name: DEVICE_TYPE
+            description: "Channel / device source (e.g., web, ios, android, pos)."
+          - name: PAYMENT_STATUS
+            description: "Raw payment status from source."
+            tests:
+              - accepted_values:
+                  arguments:
+                    values: ["PAID", "CAPTURED", "SETTLED", "PENDING", "AUTHORIZED", "FAILED", "REFUNDED", "CANCELLED", "VOIDED", "SUCCESS"]
+                    quote: true
+          - name: DELIVERY_STATUS
+            description: "Raw fulfillment/delivery status."
+            tests:
+              - accepted_values:
+                  arguments:
+                    values: ["DELIVERED", "COMPLETED", "FULFILLED", "SHIPPED", "IN_TRANSIT", "FAILED", "RETURNED", "REFUNDED", "CANCELLED", "PENDING"]
+                    quote: true
+          - name: _AIRBYTE_EXTRACTED_AT
+            description: "Ingestion timestamp."
+
+        config:
+          loaded_at_field: _AIRBYTE_EXTRACTED_AT
       - name: transaction_items
+        description: "Raw line items with pricing, VAT flag, discounts, and quantities."
+        columns:
+          - name: ID
+            description: "Transaction item row id."
+            tests: [not_null]
+          - name: TRANSACTION_ID
+            description: "FK to transactions.ID."
+            tests: [not_null]
+          - name: PRODUCT_ID
+            description: "Product id."
+          - name: PRODUCT_NAME
+            description: "Product display name."
+          - name: STOCK_ID
+            description: "Variant/stock id."
+          - name: STOCK_NAME
+            description: "Variant/stock name (e.g., size/pack)."
+          - name: UNIT
+            description: "Unit of measure."
+          - name: QUANTITY
+            description: "Line quantity."
+            tests:
+              - not_null
+          - name: PRICE
+            description: "Unit price (may be gross or ex-VAT depending on HAS_VAT)."
+            tests:
+              - not_null
+          - name: HAS_VAT
+            description: "1 if price includes VAT; 0 if already ex-VAT."
+            tests:
+              - accepted_values:
+                  arguments:
+                    values: [0, 1]
+          - name: DISCOUNT_PERCENTAGE
+            description: "Standard discount %."
+          - name: BULK_DISCOUNT_PERCENTAGE
+            description: "Bulk discount %."
+          - name: FRIENDBUY_DISCOUNT_PERCENTAGE
+            description: "Referral/Friendbuy discount %."
+          - name: _AIRBYTE_EXTRACTED_AT
+            description: "Ingestion timestamp."
+
+        config:
+          loaded_at_field: _AIRBYTE_EXTRACTED_AT
       - name: customer_accounts
       - name: zbooks_invoices
       - name: zbooks_shipments
@@ -16,7 +95,71 @@ sources:
       - name: product_brands
       - name: transaction_addresses
 
+    config:
+      freshness:
+        warn_after: {count: 24, period: hour}
+        error_after: {count: 72, period: hour}
 models:
+  - name: stg_items
+    description: "Silver: normalized items built from BRONZE.transaction_items with VAT normalization and total discounts applied."
+    columns:
+      - name: transaction_item_id
+        description: "Stable id for line item."
+        tests: [not_null, unique]
+      - name: transaction_id
+        description: "FK → source('bronze','transactions').ID"
+        tests:
+          - not_null
+          - relationships:
+              config:
+                severity: warn
+
+              arguments:
+                to: source('bronze','transactions')
+                field: ID
+      - name: product_id
+      - name: product_name
+      - name: stock_id
+      - name: stock_name
+      - name: unit
+      - name: quantity
+        tests: [not_null]
+      - name: unit_price_ex_vat
+        description: "Unit price net of VAT (backed out when HAS_VAT=1)."
+      - name: total_discount_pct
+        description: "Capped at [0,1]; sum of standard+bulk+referral discounts."
+      - name: realized_unit_price_ex_vat
+        description: "unit_price_ex_vat * (1 - total_discount_pct)."
+        tests: [not_null]
+
+  - name: stg_transactions
+    description: "Silver: normalized transactions with paid/cancel/refund flags and channel."
+    columns:
+      - name: order_id
+        tests: [not_null, unique]
+      - name: order_date
+        tests: [not_null]
+      - name: customer_id
+        tests: [not_null]
+      - name: channel
+      - name: payment_status
+      - name: delivery_status
+      - name: is_paid_order
+        tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+      - name: is_cancelled
+        tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+      - name: is_refunded
+        tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+
   - name: stg_orders
     description: "Silver: normalized orders built from BRONZE.transactions."
     columns:
@@ -24,7 +167,6 @@ models:
         tests: [not_null, unique]
       - name: created_at_utc
         tests: [not_null]
-      # accepted_values tests removed by design
 
   - name: stg_order_items
     description: "Silver: normalized order items built from BRONZE.transaction_items."
@@ -35,7 +177,6 @@ models:
         tests: [not_null]
       - name: product_id
         tests: [not_null]
-      # expression/quantity/price tests intentionally removed
 
   - name: stg_customers
     description: "Silver: normalized customers built from BRONZE.customer_accounts."
@@ -53,56 +194,56 @@ models:
         tests:
           - not_null
           - dbt_utils.expression_is_true:
-              expression: "{{ column_name }} >= 0"
+              arguments:
+                expression: "{{ column_name }} >= 0"
       - name: total_amount
         tests:
           - not_null
           - dbt_utils.expression_is_true:
-              expression: "{{ column_name }} >= amount_paid"
-
+              arguments:
+                expression: "{{ column_name }} >= amount_paid"
   - name: stg_invoices_ar
     description: "Silver layer of Zoho Books invoices representing open accounts receivable"
     columns:
       - name: invoice_id
         description: "Unique identifier for the invoice"
         tests: [not_null, unique]
-
       - name: invoice_number
         description: "Human-readable invoice number"
         tests: [not_null]
-
       - name: customer_id
         description: "Unique identifier for the customer"
         tests: [not_null]
-
       - name: total_amount
         description: "Total invoice amount"
         tests:
           - not_null
           - dbt_utils.expression_is_true:
-              expression: "{{ column_name }} >= 0"
-
+              arguments:
+                expression: "{{ column_name }} >= 0"
       - name: balance
         description: "Outstanding balance on the invoice"
         tests:
           - not_null
           - dbt_utils.expression_is_true:
-              expression: "{{ column_name }} >= 0"
-
+              arguments:
+                expression: "{{ column_name }} >= 0"
       - name: amount_paid
         description: "Amount paid so far"
         tests:
           - not_null
           - dbt_utils.expression_is_true:
-              expression: "{{ column_name }} >= 0"
+              arguments:
+                expression: "{{ column_name }} >= 0"
           - dbt_utils.expression_is_true:
-              expression: "{{ column_name }} <= total_amount"
-
+              arguments:
+                expression: "{{ column_name }} <= total_amount"
       - name: status_canonical
         description: "Normalized invoice payment status"
         tests:
           - accepted_values:
-              values: ["paid", "partially_paid", "unpaid"]
+              arguments:
+                values: ["paid", "partially_paid", "unpaid"]
 
   - name: stg_shipments
     description: "Zoho Books shipments (one row per shipment/package)"
@@ -112,6 +253,7 @@ models:
       - name: status_canonical
         tests:
           - accepted_values:
-              values: ["shipped", "in_transit", "delivered", "failed", "returned"]
               config:
                 severity: warn
+              arguments:
+                values: ["shipped", "in_transit", "delivered", "failed", "returned"]
