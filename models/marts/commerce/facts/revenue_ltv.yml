@@ -1,0 +1,52 @@
+version: 2
+
+models:
+  - name: fct_orders_revenue
+    description: "Paid orders with revenue ex-VAT, joined to customer, channel, and date."
+    columns:
+      - name: order_id
+        tests: [not_null, unique]
+      - name: customer_id
+        tests: [not_null]
+      - name: order_date
+        tests: [not_null]
+      - name: channel
+      - name: order_revenue_ex_vat
+        tests: [not_null]
+
+  - name: fct_customer_monthly_revenue
+    description: "Monthly revenue per customer, indexed by months since first order."
+    columns:
+      - name: customer_id
+        tests: [not_null]
+      - name: first_order_date
+        tests: [not_null]
+      - name: month_start
+        tests: [not_null]
+      - name: months_since_acq
+        tests: [not_null]
+
+  - name: customer_revenue_ltv
+    description: "Per-customer 6/12/24 month revenue LTV (ex-VAT)."
+    columns:
+      - name: customer_id
+        tests: [not_null]
+      - name: first_order_date
+        tests: [not_null]
+      - name: orders_count
+      - name: revenue_to_date
+      - name: ltv_revenue_6m
+      - name: ltv_revenue_12m
+      - name: ltv_revenue_24m
+
+  - name: cohort_revenue_ltv
+    description: "Cohort (first-order month) LTV summary with averages and percentiles."
+    columns:
+      - name: cohort_month
+        tests: [not_null]
+      - name: customers
+      - name: avg_ltv_6m
+      - name: avg_ltv_12m
+      - name: avg_ltv_24m
+      - name: p50_ltv_12m
+      - name: p75_ltv_12m

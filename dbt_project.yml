@@ -6,7 +6,12 @@ profile: default
 model-paths: ["models"]
 
 flags:
-  warn_error: false 
+  warn_error: false
+
+  require_generic_test_arguments_property: true
+vars:
+  vat_rate: 0.05
+  monthly_discount_rate: 0.009
 
 models:
   furchild_snowflake:
@@ -20,7 +25,7 @@ models:
       commerce:
         +tags: ['mart', 'commerce']
         dims:
-          +materialized: table     
+          +materialized: table
         facts:
           +materialized: incremental
           +on_schema_change: append_new_columns
@@ -29,4 +34,3 @@ models:
             columns: true
         aggregates:
           +materialized: table
-
