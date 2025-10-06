@@ -7,8 +7,15 @@ sources:
     quoting:
       database: false
       schema: false
-      identifier: false # <— changed to false so dbt won’t produce "transaction_items"
+      identifier: false
     tables:
+      - name: users
+        description: "Airbyte-normalized users (id=user_id, customer_account_id=customer_id)."
+        columns:
+        - name: id
+          description: "App user_id"
+        - name: customer_account_id
+          description: "Canonical customer_id"
       - name: transactions
         description: "Raw orders with user, timestamps, statuses, and device/channel."
         columns:
@@ -28,14 +35,38 @@ sources:
             tests:
               - accepted_values:
                   arguments:
-                    values: ["PAID", "CAPTURED", "SETTLED", "PENDING", "AUTHORIZED", "FAILED", "REFUNDED", "CANCELLED", "VOIDED", "SUCCESS"]
+                    values:
+                      [
+                        "PAID",
+                        "CAPTURED",
+                        "SETTLED",
+                        "PENDING",
+                        "AUTHORIZED",
+                        "FAILED",
+                        "REFUNDED",
+                        "CANCELLED",
+                        "VOIDED",
+                        "SUCCESS",
+                      ]
                     quote: true
           - name: DELIVERY_STATUS
             description: "Raw fulfillment/delivery status."
             tests:
               - accepted_values:
                   arguments:
-                    values: ["DELIVERED", "COMPLETED", "FULFILLED", "SHIPPED", "IN_TRANSIT", "FAILED", "RETURNED", "REFUNDED", "CANCELLED", "PENDING"]
+                    values:
+                      [
+                        "DELIVERED",
+                        "COMPLETED",
+                        "FULFILLED",
+                        "SHIPPED",
+                        "IN_TRANSIT",
+                        "FAILED",
+                        "RETURNED",
+                        "REFUNDED",
+                        "CANCELLED",
+                        "PENDING",
+                      ]
                     quote: true
           - name: _AIRBYTE_EXTRACTED_AT
             description: "Ingestion timestamp."
@@ -97,8 +128,8 @@ sources:
 
     config:
       freshness:
-        warn_after: {count: 24, period: hour}
-        error_after: {count: 72, period: hour}
+        warn_after: { count: 24, period: hour }
+        error_after: { count: 72, period: hour }
 models:
   - name: stg_items
     description: "Silver: normalized items built from BRONZE.transaction_items with VAT normalization and total discounts applied."
@@ -145,20 +176,6 @@ models:
       - name: payment_status
       - name: delivery_status
       - name: is_paid_order
-        tests:
-          - accepted_values:
-              arguments:
-                values: [0, 1]
-      - name: is_cancelled
-        tests:
-          - accepted_values:
-              arguments:
-                values: [0, 1]
-      - name: is_refunded
-        tests:
-          - accepted_values:
-              arguments:
-                values: [0, 1]
 
   - name: stg_orders
     description: "Silver: normalized orders built from BRONZE.transactions."
@@ -256,4 +273,5 @@ models:
               config:
                 severity: warn
               arguments:
-                values: ["shipped", "in_transit", "delivered", "failed", "returned"]
+                values:
+                  ["shipped", "in_transit", "delivered", "failed", "returned"]

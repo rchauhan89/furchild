@@ -10,7 +10,6 @@ models:
           - unique
       - name: order_id
         tests:
-<<<<<<< HEAD
           - dbt_utils.expression_is_true:
               arguments:
                 expression: "item_count >= 0::number(38,6)"
@@ -80,6 +79,3 @@ models:
             severity: warn
           arguments:
             expression: "abs(order_net_amt - round(order_net_before_tax + order_tax_amt, 2)) <= 0.01::number(38,6)"
-=======
-          - not_null
->>>>>>> 52ef72a0e0b16835d2d4fb384e6fecfed55bb3bc

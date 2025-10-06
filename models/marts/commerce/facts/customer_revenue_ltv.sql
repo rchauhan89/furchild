@@ -1,7 +1,8 @@
 {{ config(materialized='table') }}
 
-with m as (select * from {{ ref('fct_customer_monthly_revenue') }}),
-
+with m as (
+  select * from {{ ref('fct_customer_monthly_revenue') }}
+),
 roll as (
   select
     customer_id,
@@ -12,19 +13,16 @@ roll as (
   from m
   group by 1,2
 ),
-
 orders_cnt as (
   select customer_id, count(*) as orders_count
   from {{ ref('fct_orders_revenue') }}
   group by 1
 ),
-
 rev_to_date as (
   select customer_id, sum(order_revenue_ex_vat) as revenue_to_date
   from {{ ref('fct_orders_revenue') }}
   group by 1
 )
-
 select
   r.customer_id,
   r.first_order_date,
@@ -34,6 +32,5 @@ select
   coalesce(r.ltv_revenue_12m, 0) as ltv_revenue_12m,
   coalesce(r.ltv_revenue_24m, 0) as ltv_revenue_24m
 from roll r
-left join orders_cnt o on o.customer_id = r.customer_id
+left join orders_cnt  o  on o.customer_id  = r.customer_id
 left join rev_to_date rt on rt.customer_id = r.customer_id
-

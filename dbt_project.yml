@@ -21,9 +21,12 @@ models:
     marts:
       +materialized: table
       +schema: GOLD
+    gold:
+      +schema: GOLD
+      +materialized: table
 
       commerce:
-        +tags: ['mart', 'commerce']
+        +tags: ["mart", "commerce"]
         dims:
           +materialized: table
         facts:
