@@ -30,44 +30,6 @@ sources:
             tests: [not_null]
           - name: DEVICE_TYPE
             description: "Channel / device source (e.g., web, ios, android, pos)."
-          - name: PAYMENT_STATUS
-            description: "Raw payment status from source."
-            tests:
-              - accepted_values:
-                  arguments:
-                    values:
-                      [
-                        "PAID",
-                        "CAPTURED",
-                        "SETTLED",
-                        "PENDING",
-                        "AUTHORIZED",
-                        "FAILED",
-                        "REFUNDED",
-                        "CANCELLED",
-                        "VOIDED",
-                        "SUCCESS",
-                      ]
-                    quote: true
-          - name: DELIVERY_STATUS
-            description: "Raw fulfillment/delivery status."
-            tests:
-              - accepted_values:
-                  arguments:
-                    values:
-                      [
-                        "DELIVERED",
-                        "COMPLETED",
-                        "FULFILLED",
-                        "SHIPPED",
-                        "IN_TRANSIT",
-                        "FAILED",
-                        "RETURNED",
-                        "REFUNDED",
-                        "CANCELLED",
-                        "PENDING",
-                      ]
-                    quote: true
           - name: _AIRBYTE_EXTRACTED_AT
             description: "Ingestion timestamp."
 
