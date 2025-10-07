@@ -11,7 +11,7 @@ with src as (
 
         -- keys
         cast("ID" as string)                                  as order_id,
-        cast("USER_ID" as string)                             as customer_id,
+        cast("CUSTOMER_ID" as string)                             as customer_id,
 
         -- timestamps
         "TRANSACTION_DATE"                                    as created_at_local,
