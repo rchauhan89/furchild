@@ -5,13 +5,12 @@
 ) }}
 
 with src as (
-
     select
         "_AIRBYTE_EXTRACTED_AT"                               as _ingested_at,
 
         -- keys
-        cast("ID" as string)                                  as order_id,
-        cast("CUSTOMER_ID" as string)                             as customer_id,
+        cast("ID" as string)                                  as order_id_raw,
+        cast("USER_ID" as string)                             as user_id_raw,   -- <-- was CUSTOMER_ID
 
         -- timestamps
         "TRANSACTION_DATE"                                    as created_at_local,
@@ -62,14 +61,29 @@ with src as (
     from {{ source('bronze','transactions') }}
 ),
 
+-- normalize order_id exactly like stg_transactions
+norm as (
+    select
+      *,
+      cast(
+        regexp_replace(
+          regexp_replace(
+            regexp_replace(trim(order_id_raw),
+              '^(SO\\-|SO|ORD\\-|ORD|ORDER\\-|ORDER|#)', ''),
+            '[-_ ]', ''),
+          '[^[:alnum:]]',''
+        ) as string
+      ) as order_id
+    from src
+),
+
 join_slot as (
     select
       s.*,
       d.delivery_slot_id,
       d.delivery_slot as delivery_time_slot
-    from src s
+    from norm s
     left join {{ ref('stg_delivery_slots') }} d
-      -- join on normalized text -> canonical slot label inside the dim
       on s.delivery_time_slot_norm = d.slot_txt
 ),
 
@@ -82,56 +96,63 @@ dedup as (
     ) = 1
 ),
 
+-- bring in canonical customer_id from stg_transactions
+tx as (
+  select order_id, customer_id
+  from {{ ref('stg_transactions') }}
+),
+
 clean as (
     select
-        order_id,
-        customer_id,
+        s.order_id,
+        t.customer_id,                 -- ✅ from stg_transactions
 
-        created_at_local,
-        created_at_utc,
-        updated_at_utc,
+        s.created_at_local,
+        s.created_at_utc,
+        s.updated_at_utc,
 
-        to_date(created_at_local) as order_date_local,
-        to_date(created_at_utc)   as order_date_utc,
+        to_date(s.created_at_local) as order_date_local,
+        to_date(s.created_at_utc)   as order_date_utc,
 
         -- keep requested delivery fields
-        expected_delivery_date,
-        delivery_slot_id,
-        delivery_time_slot,
+        s.expected_delivery_date,
+        s.delivery_slot_id,
+        s.delivery_time_slot,
 
-        gross_amount,
-        total_amount,
-        vat_percentage,
+        s.gross_amount,
+        s.total_amount,
+        s.vat_percentage,
 
-        coalesce(discount_amount,0)
-        + coalesce(bw_discount_amount,0)
-        + coalesce(ndc_discount_amount,0)
-        + coalesce(bulk_discount_amount,0)
-        + coalesce(points_discount_amount,0)
-        + coalesce(special_discount_amount,0)
-        + coalesce(giftcard_discount_amount,0) as discount_total,
+        coalesce(s.discount_amount,0)
+        + coalesce(s.bw_discount_amount,0)
+        + coalesce(s.ndc_discount_amount,0)
+        + coalesce(s.bulk_discount_amount,0)
+        + coalesce(s.points_discount_amount,0)
+        + coalesce(s.special_discount_amount,0)
+        + coalesce(s.giftcard_discount_amount,0) as discount_total,
 
-        case when payment_status_raw = 1 then 'paid'
-             when payment_status_raw = 0 then 'unpaid'
+        case when s.payment_status_raw = 1 then 'paid'
+             when s.payment_status_raw = 0 then 'unpaid'
              else 'unknown' end                as payment_status,
 
-        case when delivery_status_raw = 1 then 'delivered'
-             when delivery_status_raw = 0 then 'pending'
+        case when s.delivery_status_raw = 1 then 'delivered'
+             when s.delivery_status_raw = 0 then 'pending'
              else 'unknown' end                as delivery_status,
 
-        payment_method_raw,
-        coupon_code,
-        device_type,
-        delivery_option,
-        friendbuy_code,
-        gift_card_code,
-        additional_note,
-        zoho_so_id,
-        customer_name,
+        s.payment_method_raw,
+        s.coupon_code,
+        s.device_type,
+        s.delivery_option,
+        s.friendbuy_code,
+        s.gift_card_code,
+        s.additional_note,
+        s.zoho_so_id,
+        s.customer_name,
 
-        _ingested_at
-    from dedup
-    where order_id is not null
+        s._ingested_at
+    from dedup s
+    left join tx t using (order_id)
+    where s.order_id is not null
 )
 
 select * from clean
