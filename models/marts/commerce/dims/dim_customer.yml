@@ -1,0 +1,39 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: >
+      Canonical customer dimension built from silver.stg_customers.
+      Removes everything after the substring "Furchild:" in names and removes "+" from phone numbers.
+      Deduplicated by CUSTOMER_ID, keeps most recently updated record.
+
+    columns:
+      - name: customer_key
+        description: Surrogate key generated from CUSTOMER_ID.
+        tests:
+          - not_null
+          - unique
+
+      - name: customer_id
+        description: Raw customer ID from source system.
+        tests:
+          - not_null
+
+      - name: email
+        description: Lowercased and trimmed customer email address.
+
+      - name: phone
+        description: >
+          Phone number with '+' removed (still may contain digits, spaces, or dashes).
+          Example: '+971509998888' → '971509998888'.
+
+      - name: full_name
+        description: >
+          Customer full name cleaned to remove everything after 'Furchild:' (case-insensitive),
+          e.g. 'John Doe Furchild: VIP' → 'John Doe'.
+
+      - name: created_at
+        description: Record creation timestamp from source system.
+
+      - name: updated_at
+        description: Last update timestamp from source system.
