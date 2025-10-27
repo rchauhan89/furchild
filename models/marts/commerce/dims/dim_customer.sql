@@ -10,7 +10,7 @@
 with src as (
   select
     cast(CUSTOMER_ID as varchar)   as customer_id,
-    lower(trim(EMAIL))              as email,
+    lower(trim(EMAIL_PRIMARY))              as email,
     trim(PHONE)                     as phone_raw,
     trim(FULL_NAME)                 as full_name_raw,
     CREATED_AT,
@@ -32,7 +32,7 @@ ranked as (
 cleaned as (
   select
     customer_id,
-    email,
+    email_primary,
 
     -- Remove '+' signs from phone numbers
     case
@@ -61,7 +61,7 @@ cleaned as (
 select
   {{ dbt_utils.generate_surrogate_key(['customer_id']) }} as customer_key,
   customer_id,
-  email,
+  email_primary,
   phone,
   full_name,
   created_at,
