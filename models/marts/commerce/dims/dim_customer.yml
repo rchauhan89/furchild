@@ -1,11 +1,11 @@
 version: 2
 
 models:
-  - name: dim_customers
+  - name: dim_customer
     description: >
-      Canonical customer dimension built from silver.stg_customers.
+      Canonical customer dimension built from SILVER.STG_CUSTOMERS.
       Removes everything after the substring "Furchild:" in names (case-insensitive),
-      trims leftover separators, and removes "+" from the chosen phone number.
+      trims leftover separators, and removes "+" from the preferred phone.
       Deduplicated by CUSTOMER_ID with the most recently updated record winning.
 
     columns:
@@ -27,7 +27,7 @@ models:
         description: Preferred phone (PRIMARY → SECONDARY → FORMATTED) with '+' removed.
 
       - name: full_name
-        description: Customer name cleaned to remove everything after 'Furchild:', then trimmed of trailing separators.
+        description: Customer name with everything after 'Furchild:' removed; trailing separators trimmed.
 
       - name: created_at
         description: Source-created timestamp.
