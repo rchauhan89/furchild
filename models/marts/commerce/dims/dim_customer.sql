@@ -1,7 +1,7 @@
 {{ 
   config(
     schema='GOLD',
-    alias='DIM_CUSTOMERS',
+    alias='DIM_CUSTOMER',
     materialized='table',
     on_schema_change='sync_all_columns'
   ) 
@@ -32,7 +32,7 @@ ranked as (
 cleaned as (
   select
     customer_id,
-    email,
+    email_primary,
 
     -- Remove '+' signs from phone numbers
     case
@@ -61,7 +61,7 @@ cleaned as (
 select
   {{ dbt_utils.generate_surrogate_key(['customer_id']) }} as customer_key,
   customer_id,
-  email,
+  email_primary,
   phone,
   full_name,
   created_at,
