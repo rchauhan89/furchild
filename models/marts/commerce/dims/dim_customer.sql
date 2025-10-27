@@ -79,4 +79,4 @@ select
   full_name,
   created_at,
   updated_at
-from cleaned;
+from cleaned
