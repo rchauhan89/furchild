@@ -11,7 +11,7 @@ with src as (
   select
     cast(CUSTOMER_ID as varchar)   as customer_id,
     lower(trim(EMAIL_PRIMARY))              as email,
-    trim(PHONE)                     as phone_raw,
+    trim(PHONE_PRIMARY)                     as phone_raw,
     trim(FULL_NAME)                 as full_name_raw,
     CREATED_AT,
     UPDATED_AT
@@ -38,7 +38,7 @@ cleaned as (
     case
       when phone_raw is null then null
       else regexp_replace(phone_raw, '\\+', '')
-    end as phone,
+    end as phone_primary,
 
     -- Remove everything AFTER 'Furchild:' (case-insensitive)
     -- Example:
@@ -62,7 +62,7 @@ select
   {{ dbt_utils.generate_surrogate_key(['customer_id']) }} as customer_key,
   customer_id,
   email_primary,
-  phone,
+  phone_primary,
   full_name,
   created_at,
   updated_at

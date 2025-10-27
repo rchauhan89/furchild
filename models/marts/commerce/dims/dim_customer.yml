@@ -22,7 +22,7 @@ models:
       - name: email_primary
         description: Lowercased and trimmed customer email address.
 
-      - name: phone
+      - name: phone_primary
         description: >
           Phone number with '+' removed (still may contain digits, spaces, or dashes).
           Example: '+971509998888' → '971509998888'.
