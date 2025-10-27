@@ -19,7 +19,7 @@ models:
         tests:
           - not_null
 
-      - name: email
+      - name: email_primary
         description: Lowercased and trimmed customer email address.
 
       - name: phone
